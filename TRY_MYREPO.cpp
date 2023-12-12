@@ -7,6 +7,7 @@
 #include <map>
 #include <vector>
 
+
 #define MAXFILESIZE 50
 using namespace std;
 
@@ -147,6 +148,9 @@ public:
             const float spend_m, const string amt) 
             : start_city_name(scn), end_city_name(ecn), 
             start_time(st), end_time(et), spend_time(spend_t), spend_money(spend_m), rank(amt) {}
+    LineNode() {
+        this->start_city_name = start_city_name;
+    };
 
 };
 
@@ -162,27 +166,17 @@ public:
     int city_id;
 };
 
-// class cmp_vnode {  // 定义从 Vnode 映射 vector<InfoType> 的 map 的关键字比较关系
-// public:
-// 	bool operator() (const Vnode& x, const Vnode& k) const {
-// 			// if(x.start_city_name >= k.start_city_name)
-// 			// return false;  //STL源码规定必须这么返回，而不能改成 true
-// 			// else
-// 			// return true;
-//             return x.start_city_name < k.start_city_name;d
-// 	}
-// };
 
-//运算符'<<'重载以美化 LineNode 对象的输入
+//运算符'<<'重载以美化 LineNode 对象的输入, 搬运到其他位置
 ostream & operator << (ostream &out, const LineNode &line) {
 
-    cout << "出发城市|到达城市|班次名|出发时间|到达时间|路程用时|路程票价" << endl;
-    cout << setw(10) << line.start_city_name << " " <<  setw(10) << line.end_city_name 
-        << " " << setw(6) << line.rank << " ";
-    cout.fill('0'); // 修改 fill() 的默认填充符为 0
-    cout << line.start_time << " " << line.end_time << " " << line.spend_time << " "
-        << setiosflags(ios_base::showpoint) << line.spend_money << endl;
-    cout.fill(' '); // fill() 不像 setw(), 需要手动调整
+    // cout << "出发城市|到达城市|班次名|出发时间|到达时间|路程用时|路程票价" << endl;
+    // cout << setw(10) << line.start_city_name << " " <<  setw(10) << line.end_city_name 
+    //     << " " << setw(6) << line.rank << " ";
+    // cout.fill('0'); // 修改 fill() 的默认填充符为 0
+    // cout << line.start_time << " " << line.end_time << " " << line.spend_time << " "
+    //     << setiosflags(ios_base::showpoint) << line.spend_money << endl;
+    // cout.fill(' '); // fill() 不像 setw(), 需要手动调整
 
     return out;
 } 
@@ -192,21 +186,23 @@ ostream & operator << (ostream &out, const LineNode &line) {
 
 class ALGraph {
     public:
-        auto cityGo ();  // 输出出发城市
-        auto cityArrive ();  //输出到达城市
-        bool ifCityExist (const string & city_name);  // 查询城市是否存在
-        void addCityFromFile (const char FILENAME[MAXFILESIZE]);  // 从文件读取以添加城市
-        void addLine();  // 手动添加线路
-        void addLineFromFile(const char FILENAME[MAXFILESIZE]);  // 从文件读取以添加线路
+        const char *FILENAME;
+        ALGraph(const char *FILENAME)
+        {
+            this->FILENAME = FILENAME;
+        }
 
+        auto cityGo ();  // 返回出发城市
+        auto cityArrive ();  //返回到达城市
+        int ifCityExist (const string & city_name);  // 查询城市是否存在
+        void addLine(const string start_city_name, const string end_city_name, const Time start_time, const Time end_time, const Time spend_time, 
+            const float spend_money, const string rank);  // 手动添加线路
         // 删除线路，需要手动输入起点与终点
-        void delLine(const std::string &sc, const std::string &ec, const std::string &amt);  
-        // 删除城市，并删除以该城市为起点的航班和列车信息
-        void delCity(const std::string &city_name);  
-        //void updateFile(const char FileName[MAXFILESIZE], const std::string type);  // 修改后更新文件
+        void delLine(const std::string &startCity, const std::string &endCity, const std::string &rank);  
 
         void showAllCity();  // 输出所有城市
         void showAllLine();  // 输出所有线路
+
 
     //     // 返回从起点城市到终点城市的所有路径
     //     std::vector<std::vector<LineNode>> getPathsByCity (const std::string &sc, const std::string &ec);
@@ -227,8 +223,6 @@ class ALGraph {
     //     // 定义从 Vnode 映射 vector<InfoType> 的 map, 关键字为 Vnode 中的 start_city_name，关键字的关系为 cmp_vnode
     //     std::map <Vnode, std::vector<LineNode>, cmp_vnode > m;
 
-        int city_num;
-        int line_num;
 
     //     // 通过起点城市、终点城市、班次，查询一条线路信息
     //     std::vector<LineNode> getLineNode (const std::string sc, const std::string ec, const std::string amt);
@@ -239,7 +233,7 @@ class ALGraph {
 auto ALGraph::cityGo()
 {
     //暂未更改路径
-	std::ifstream inputFile("数据结构/National-Transport-Advisory/Flight.txt");  // 用你的文件名替换 "your_file.txt"
+	std::ifstream inputFile(this->FILENAME);  
 
     if (!inputFile.is_open()) {
         std::cerr << "无法打开文件\n";
@@ -264,7 +258,7 @@ auto ALGraph::cityGo()
 
 auto ALGraph::cityArrive()
 {
-    std::ifstream inputFile("数据结构/National-Transport-Advisory/Flight.txt"); // 请替换为实际的文件名
+    std::ifstream inputFile(this->FILENAME); // 请替换为实际的文件名
     if (!inputFile.is_open()) {
         std::cerr << "无法打开文件\n";
     }
@@ -291,62 +285,24 @@ auto ALGraph::cityArrive()
  * @param city_name 要查询的城市名称。
  * @return 如果城市存在于图中，则返回 true；否则返回 false。
  */
-bool ALGraph::ifCityExist(const string &city_name) {
+int ALGraph::ifCityExist(const string &city_name) {
     for (const auto &city : cityGo()) {
-        if(city == city_name) return true;
+        if(city == city_name) return 1;
+    }//
+    for (const auto &city : cityArrive()) {
+        if(city == city_name) return 2;
     }
+    return 0;
+
 }
 
 //手动添加线路
 void ALGraph::addLine () {
-    string start_city_name;
-    cout << "请输入起点城市：";
-    cin >> start_city_name;
-    
-    if (!ifCityExist(start_city_name)) {
-        cout << "起点该城市并不存在，请先创建该城市！" << endl;
-        return;
-    }
 
-    string end_city_name;
-    Time start_time, end_time;
-    Time spend_time;
-    float spend_money;
-    string rank;  // 火车或飞机的班次
 
-    cout << "请输入终点城市：";
-    cin >> end_city_name;
-    if (!ifCityExist(end_city_name)) {
-        cout << "终点城市" << end_city_name << "并不存在，请先创建该城市！" << endl;
-        return;
-    }
-    cout << "请输入班次名：";
-    cin >> rank;
-    cout << "请输入出发时间(格式为hh:mm,+d)：";
-    cin >> start_time;
-    cout << "请输入到达时间(格式为hh:mm,+d)：";
-    cin >> end_time;
 
-    if (start_time < end_time) {
-        spend_time = end_time - start_time;
-    } else{
-        cout << "出发时间大于到达时间，输入错误，请重新输入！" << endl;
-        return;
-    }
-
-    cout << "请输入票价：";
-    cin >> spend_money;
-
-    // auto it = m.find(Vnode(start_city_name));
-    // if (it != m.end()) {
-    //     (*it).second.push_back(LineNode (start_city_name, end_city_name, start_time, end_time, 
-    //                 spend_time, spend_money, rank));
-    //     cout << "添加路线成功！" << endl;
-    // }
-
-    const char* fileName = "数据结构/National-Transport-Advisory/Flight.txt";
-    std::ifstream inFile(fileName);
-    std::ofstream tempFile("temp.txt"); // 临时文件
+    ifstream inFile(this->FILENAME);
+    ofstream tempFile("temp.txt"); // 临时文件
 
     if (!inFile.is_open() || !tempFile.is_open()) {
         std::cerr << "无法打开文件\n";
@@ -361,11 +317,6 @@ void ALGraph::addLine () {
 
         // 如果找到插入点，插入新的数据
         if (!inserted && line.find(start_city_name) != std::string::npos) {
-            cout << 666666666666666666666;
-            // tempFile <<  setw(10) << start_city_name << " " << setw(10) << end_city_name << " "
-            //           << rank << " " << start_time << " "
-            //           << end_time << " " << spend_time << " "
-            //           << std::setprecision(3) << std::fixed << spend_money << std::endl;
 
             tempFile << setw(10) << start_city_name << " " <<  setw(10) << end_city_name 
                       << " " << setw(6) << rank << " ";
@@ -379,22 +330,113 @@ void ALGraph::addLine () {
 
     // 如果数据应该插入到文件末尾
     if (!inserted) {
-            tempFile << LineNode (start_city_name, end_city_name, start_time, end_time,spend_time, spend_money, rank);
+            tempFile << setw(10) << start_city_name << " " <<  setw(10) << end_city_name 
+                      << " " << setw(6) << rank << " ";
+            tempFile.fill('0'); // 修改 fill() 的默认填充符为 0
+            tempFile << start_time << " " << end_time << " " << spend_time << " "
+                 << setiosflags(ios_base::showpoint) << spend_money << endl;
+            tempFile.fill(' '); // fill() 不像 setw(), 需要手动调整    }
+
+    }    
+    inFile.close();
+    tempFile.close();
+
+    // 删除原文件
+    std::remove(this->FILENAME);
+
+    // 将临时文件重命名为原文件
+    std::rename("temp.txt", this->FILENAME);
+}
+
+void ALGraph::showAllCity()
+{
+    int i=0;
+    cout << "城市名称如下：" << endl;
+    for (const auto &city : cityGo())
+    {
+        i++;
+        cout << city << " ";
+    }
+    cout << endl << "一共有"  << i << "个城市" << endl;
+}
+
+void ALGraph::showAllLine()
+{
+    std::ifstream inputFile(this->FILENAME);  
+
+    if (!inputFile.is_open()) {
+        std::cerr << "无法打开文件\n";
+    }
+
+    std::string line;
+
+	std::getline(inputFile, line);
+    while (std::getline(inputFile, line)) {
+        cout << line << endl;
+    }
+}
+
+
+void ALGraph::delLine (const string &startCity, const string &endCity, const string &rank) {
+
+    // if (ifCityExist(startCity) != 1) {
+    //     cout << startCity << "不存在！请重新输入正确的城市名或者新建该城市！" << endl;
+    //     return;
+    // }
+    // if (!ifCityExist(endCity) != 2) {
+    //     cout << endCity << "不存在！请重新输入正确的城市名或者新建该城市！" << endl;
+    //     return;
+    // }
+    
+
+    ifstream inFile(this->FILENAME);
+    ofstream tempFile("temp.txt");
+    string line;
+
+    if (!inFile.is_open()) {
+        std::cerr << "无法打开文件\n";
+        return;
+    }
+
+    // 吃掉第一行
+    std::getline(inFile, line);
+    std::istringstream iss(line);
+    tempFile << line << endl;
+    while (std::getline(inFile, line)) {
+        std::istringstream iss(line);
+        LineNode currentLine;
+
+        iss >> currentLine.start_city_name >> currentLine.end_city_name >> currentLine.rank
+            >> currentLine.start_time >> currentLine.end_time >> currentLine.spend_time
+            >> currentLine.spend_money;
+
+
+        if (!(currentLine.start_city_name == startCity &&
+              currentLine.end_city_name == endCity &&
+              currentLine.rank == rank)) {
+            // 如果不符合条件，则将该行写入临时文件
+            tempFile << setw(10) << currentLine.start_city_name << " " <<  setw(10) << currentLine.end_city_name 
+                      << " " << setw(6) << currentLine.rank << " ";
+            tempFile.fill('0'); // 修改 fill() 的默认填充符为 0
+            tempFile << currentLine.start_time << " " << currentLine.end_time << " " << currentLine.spend_time << " "
+                 << setiosflags(ios_base::showpoint) << currentLine.spend_money << endl;
+            tempFile.fill(' '); // fill() 不像 setw(), 需要手动调整
+        }
     }
 
     inFile.close();
     tempFile.close();
 
-    // 替换原始文件
-    std::remove(fileName);
-    std::rename("temp.txt", fileName);
+    // 删除原文件
+    std::remove(this->FILENAME);
 
+    // 将临时文件重命名为原文件
+    std::rename("tempFlight.txt", this->FILENAME);
 
+    cout << "已删除从" << startCity << "到" << endCity << "，班次号为" << rank << "的线路！" << endl;
 
+}
 
-    ++line_num;
-
-}//addLine 
 
 int main()
 {
@@ -417,18 +459,56 @@ int main()
 
     //Node
 
-    ALGraph a;
-    // string start_city_name = "上海";
-    // string end_city_name = "北京";
-    // string rank = "AF1000";
-    // Time start_time(14,20,+0);
-    // Time end_time(15,50,+0);
-    // Time spend_time(01,30,+0);
-    // float spend_money = 380.0;
-    // LineNode sampleLine(start_city_name, end_city_name, start_time, end_time, spend_time, spend_money, rank);
-    // cout << sampleLine;
+    // 此处更改是飞机还是火车的文件
+    const char *filename = "数据结构/National-Transport-Advisory/Flight.txt";
+    ALGraph a(filename);
+
+    // 城市是否存在，返回1/2/0
+    cout << a.ifCityExist("西安");
 
 
-    a.addLine();
+    // 添加城市
+    // string start_city_name;
+    // cout << "请输入起点城市：";
+    // cin >> start_city_name;
+    // string end_city_name;
+    // Time start_time, end_time;
+    // Time spend_time;
+    // float spend_money;
+    // string rank; 
+    // cout << "请输入终点城市：";
+    // cin >> end_city_name;
+    // cout << "请输入班次名：";
+    // cin >> rank;
+    // cout << "请输入出发时间(格式为hh:mm,+d)：";
+    // cin >> start_time;
+    // cout << "请输入到达时间(格式为hh:mm,+d)：";
+    // cin >> end_time;
+    // if (start_time < end_time) {
+    //     spend_time = end_time - start_time;
+    // } else{
+    //     cout << "出发时间大于到达时间，输入错误，请重新输入！" << endl;
+    //     return;
+    // }
+    // cout << "请输入票价：";
+    // cin >> spend_money;
+    // a.addLine(start_city_name, end_city_name, start_time, end_time, spend_time, 
+            // spend_money, rank);
+
+
+
+    // string start_city_name;
+    // string end_city_name;
+    // string rank; 
+    // cout << "请输入起点城市：";
+    // cin >> start_city_name;
+    // cout << "请输入终点城市：";
+    // cin >> end_city_name;
+    // cout << "请输入班次名：";
+    // cin >> rank;
+    // a.delLine(start_city_name, end_city_name, rank);
+
+    // a.showAllCity();
+    // a.showAllLine();
     return 0;
 }
