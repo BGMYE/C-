@@ -6,7 +6,11 @@
 #include <set>
 #include <map>
 #include <vector>
-
+#include <unordered_map>
+#include <limits>
+#include <climits>
+#include <algorithm>
+#include <cfloat>
 
 #define MAXFILESIZE 50
 using namespace std;
@@ -64,6 +68,10 @@ public:
  */
 bool operator < (Time t1, Time t2) {
     return (t1.getTotalMintue() < t2.getTotalMintue());
+}
+
+bool operator >= (Time t1, Time t2) {
+    return (t1.getTotalMintue() >= t2.getTotalMintue());
 }
 
 /**
@@ -210,26 +218,53 @@ ostream & operator << (ostream &out, const LineNode &line) {
 
 
 
-
 class ALGraph {
-    public:
-        const char *FILENAME;
-        ALGraph(const char *FILENAME)
-        {
-            this->FILENAME = FILENAME;
+public:
+    const char *FILENAME;
+    ALGraph(const char *FILENAME)
+    {
+        this->FILENAME = FILENAME;
+        ifstream inFile(this->FILENAME);
+        string line;
+
+        // 检查文件是否成功打开
+        if (!inFile.is_open()) {
+            std::cerr << "无法打开文件\n";
+            return;
         }
 
-        auto cityGo ();  // 返回出发城市
-        auto cityArrive ();  //返回到达城市
-        int ifCityExist (const string & city_name);  // 查询城市是否存在
-        void addLine(const string start_city_name, const string end_city_name, const Time start_time, const Time end_time, const Time spend_time, 
-            const float spend_money, const string rank);  // 手动添加线路
-        // 删除线路，需要手动输入起点与终点
-        void delLine(const std::string &startCity, const std::string &endCity, const std::string &rank);  
+        // 读取文件的第一行，假设它包含标题或其他不需要的信息
+        std::getline(inFile, line);
+        std::istringstream iss(line);
 
-        void showAllCity();  // 输出所有城市
-        void showAllLine();  // 输出所有线路
+        // 从文件的每一行过滤符合条件的线路信息
+        while (std::getline(inFile, line)) {
+            std::istringstream iss(line);
+            LineNode currentLine;
 
+            // 读取当前行的线路信息
+            iss >> currentLine.start_city_name >> currentLine.end_city_name >> currentLine.rank
+                >> currentLine.start_time >> currentLine.end_time >> currentLine.spend_time
+                >> currentLine.spend_money;
+
+            // 传入到graph
+            graph[currentLine.start_city_name].push_back(currentLine);
+        }
+    }
+
+    auto cityGo ();  // 返回出发城市
+    auto cityArrive ();  //返回到达城市
+    int ifCityExist (const string & city_name);  // 查询城市是否存在
+    void addLine(const string start_city_name, const string end_city_name, const Time start_time, const Time end_time, const Time spend_time, 
+                 const float spend_money, const string rank);  // 手动添加线路
+    // 删除线路，需要手动输入起点与终点
+    void delLine(const std::string &startCity, const std::string &endCity, const std::string &rank);  
+
+    void showAllCity();  // 输出所有城市
+    void showAllLine();  // 输出所有线路
+
+    // 输出从起点城市到终点城市，花费最小的线路
+    void printLeastMoneyPath (const std::string &start_city, const std::string &end_city);  
 
     //     // 返回从起点城市到终点城市的所有路径
     //     std::vector<std::vector<LineNode>> getPathsByCity (const std::string &sc, const std::string &ec);
@@ -240,19 +275,54 @@ class ALGraph {
     //     // 输出从起点城市到终点城市，中转次数最少的路径
     //     void printLeastTransferPath (const std::string &sc, const std::string &ec);  
         
-    //     // 输出从起点城市到终点城市，花费最小的线路
-    //     void printLeastMoneyPath (const std::string &sc, const std::string &ec);  
+
 
     //     // 输出从起点城市到终点城市，总时间最短的线路
     //     void printLeastTimePath (const std::string &sc, const std::string &ec);
         
-    // private:
-    //     // 定义从 Vnode 映射 vector<InfoType> 的 map, 关键字为 Vnode 中的 start_city_name，关键字的关系为 cmp_vnode
-    //     std::map <Vnode, std::vector<LineNode>, cmp_vnode > m;
-
 
     //     // 通过起点城市、终点城市、班次，查询一条线路信息
     //     std::vector<LineNode> getLineNode (const std::string sc, const std::string ec, const std::string amt);
+
+private:
+    unordered_map<string, vector<LineNode>> graph;
+
+/**
+ * 深度优先搜索（DFS）函数，用于查找从当前城市到目标城市的最低票价。
+ *
+ * @param currentCity    当前正在探索的城市。
+ * @param end_city       目标城市。
+ * @param path           当前正在探索的路径。
+ * @param minPrice       最低票价的引用。
+ * @param minPath        最低票价对应的路径的引用。
+ * @param currentPrice   当前路径的累计票价。
+ */
+float dfs(string currentCity, string end_city, vector<string>& path, double& minPrice, vector<string>& minPath, double currentPrice) {
+    // 将当前城市加入路径
+    path.push_back(currentCity);
+
+    // 检查当前城市是否为目标城市
+    if (currentCity == end_city) {
+        // 如果当前路径更便宜，更新最低票价和路径
+        if (currentPrice < minPrice) {
+            minPrice = currentPrice;
+            minPath = path;
+        }
+    } else {
+        // 探索所有邻近城市
+        for (const LineNode& flight : graph[currentCity]) {
+            // 检查邻近城市是否尚未被访问
+            if (find(path.begin(), path.end(), flight.end_city_name) == path.end()) {
+                // 递归探索邻近城市
+                dfs(flight.end_city_name, end_city, path, minPrice, minPath, currentPrice + flight.spend_money);
+            }
+        }
+    }
+
+    // 回溯：从路径中移除当前城市
+    path.pop_back();
+}
+
 
 };
 
@@ -508,6 +578,23 @@ void ALGraph::delLine(const string &startCity, const string &endCity, const stri
 
 
 
+void ALGraph::printLeastMoneyPath (const std::string &start_city, const std::string &end_city)
+{
+    
+    double minPrice = DBL_MAX; 
+    vector<string> path;
+    vector<string> minPath;
+
+    dfs(start_city, end_city, path, minPrice, minPath, 0.0);
+
+    cout << "最小的花费为: " << minPrice << endl;
+    cout << "路径如下: ";
+    for (const string& city : minPath) {
+        cout << city << " -> ";
+    }
+}
+
+
 int main()
 {
     //功能实现基本示例
@@ -580,5 +667,7 @@ int main()
 
     // a.showAllCity();
     // a.showAllLine();
+
+    a.printLeastMoneyPath("上海", "天津");
     return 0;
 }
