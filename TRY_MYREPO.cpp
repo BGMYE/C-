@@ -297,7 +297,8 @@ int ALGraph::ifCityExist(const string &city_name) {
 }
 
 //手动添加线路
-void ALGraph::addLine () {
+void ALGraph::addLine (const string start_city_name, const string end_city_name, const Time start_time, const Time end_time, const Time spend_time, 
+            const float spend_money, const string rank) {
 
 
 
