@@ -115,6 +115,41 @@ Time operator - (Time t1, Time t2){
     return tmp_t;
 }
 
+Time operator + (Time t1, Time t2){
+    // Time 对象的加法重载，实现两 Time 对象的时间差计算
+
+    // 创建临时 Time 对象用于存储计算结果
+    Time tmp_t;
+
+    // 计算分钟
+    int tem_minute = 0;
+    if (t1.minute + t2.minute >= 60)
+    {
+    tmp_t.minute = t1.minute + t2.minute - 60; 
+    tem_minute++;
+    }
+    else
+    {
+        tmp_t.minute = t1.minute + t2.minute;
+    }
+
+    // 计算小时
+    int tem_hour = 0;
+    if (t1.hour + t2.hour + tem_minute >= 24 ) {
+        tmp_t.hour = t1.hour + t2.hour - 24;
+        tem_hour ++;
+    }
+    else{
+        tmp_t.hour = t1.hour + t2.hour;
+    }
+
+    // 计算天数差值
+    tmp_t.day += t1.day + t2.day + tem_hour;
+
+    // 返回计算结果
+    return tmp_t;
+}
+
 /**
  * @brief 重载输入流运算符 (>>) 用于从输入流中读取 Time 对象的值。
  * @param in 输入流对象，表示从中读取数据。
@@ -265,6 +300,8 @@ public:
 
     // 输出从起点城市到终点城市，花费最小的线路
     void printLeastMoneyPath (const std::string &start_city, const std::string &end_city);  
+   
+    void getinfofromPath(vector<string> path,vector<string> &ranklist,vector<Time> &STList,vector<Time> &ETList,vector<float> &spend_money_list);
 
     //     // 返回从起点城市到终点城市的所有路径
     //     std::vector<std::vector<LineNode>> getPathsByCity (const std::string &sc, const std::string &ec);
@@ -584,17 +621,43 @@ void ALGraph::printLeastMoneyPath (const std::string &start_city, const std::str
     double minPrice = DBL_MAX; 
     vector<string> path;
     vector<string> minPath;
-
+    vector<string> ranklist;
+    vector<Time> STList;
+    vector<Time> ETList;
+    vector<float> spend_money_list;
     dfs(start_city, end_city, path, minPrice, minPath, 0.0);
 
     cout << "最小的花费为: " << minPrice << endl;
     cout << "路径如下: ";
-    for (const string& city : minPath) {
-        cout << city << " -> ";
+    getinfofromPath(path, ranklist, STList, ETList, spend_money_list);
+    Time s1(0,0,0);
+    Time s2(0,0,0);
+    for (int i=0;i < path.size() - 1;i++) {
+        
+        cout << ranklist[i];
     }
+
+
+
 }
 
-
+void ALGraph::getinfofromPath(vector<string> path,vector<string> &ranklist,vector<Time> &STList,vector<Time> &ETList,vector<float> &spend_money_list)
+{
+    for(int i=0;i<path.size()-1;i++)
+    {
+        vector<LineNode> test = graph[path[i]];
+        for(auto j:test)
+        {
+            if (j.end_city_name==path[i+1])
+            {
+                ranklist.push_back(j.rank);
+                STList.push_back(j.start_time);
+                ETList.push_back(j.end_time);
+                spend_money_list.push_back(j.spend_money);
+            }
+        }
+    }
+}
 int main()
 {
     //功能实现基本示例
