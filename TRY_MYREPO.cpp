@@ -116,6 +116,47 @@ Time operator - (Time t1, Time t2){
 }
 
 /**
+ * @brief 重载加法运算符 (-) 用于计算两个 Time 对象的时间差。
+ * @param t1 减法操作的左侧 Time 对象。
+ * @param t2 减法操作的右侧 Time 对象。
+ * @return 返回一个新的 Time 对象，表示 t1 加上 t2 的时间差。
+ */
+Time operator + (Time t1, Time t2){
+    // Time 对象的加法重载，实现两 Time 对象的时间差计算
+
+    // 创建临时 Time 对象用于存储计算结果
+    Time tmp_t;
+
+    // 计算分钟
+    int tem_minute = 0;
+    if (t1.minute + t2.minute >= 60)
+    {
+    tmp_t.minute = t1.minute + t2.minute - 60; 
+    tem_minute++;
+    }
+    else
+    {
+        tmp_t.minute = t1.minute + t2.minute;
+    }
+
+    // 计算小时
+    int tem_hour = 0;
+    if (t1.hour + t2.hour + tem_minute >= 24 ) {
+        tmp_t.hour = t1.hour + t2.hour - 24;
+        tem_hour ++;
+    }
+    else{
+        tmp_t.hour = t1.hour + t2.hour;
+    }
+
+    // 计算天数差值
+    tmp_t.day += t1.day + t2.day + tem_hour;
+
+    // 返回计算结果
+    return tmp_t;
+}
+
+/**
  * @brief 重载输入流运算符 (>>) 用于从输入流中读取 Time 对象的值。
  * @param in 输入流对象，表示从中读取数据。
  * @param time 输入的 Time 对象，接收从输入流中读取的时间值。
@@ -297,11 +338,11 @@ private:
  * @param minPath        最低票价对应的路径的引用。
  * @param currentPrice   当前路径的累计票价。
  */
-float dfs(string currentCity, string end_city, vector<string>& path, double& minPrice, vector<string>& minPath, double currentPrice) {
+float dfs(string currentCity, string end_city, vector<LineNode>& path, double& minPrice, vector<LineNode>& minPath, double currentPrice, LineNode line) {
     // 将当前城市加入路径
-    path.push_back(currentCity);
+    path.push_back(line);
 
-    // 检查当前城市是否为目标城市
+    // // 检查当前城市是否为目标城市
     if (currentCity == end_city) {
         // 如果当前路径更便宜，更新最低票价和路径
         if (currentPrice < minPrice) {
@@ -311,13 +352,31 @@ float dfs(string currentCity, string end_city, vector<string>& path, double& min
     } else {
         // 探索所有邻近城市
         for (const LineNode& flight : graph[currentCity]) {
+            
             // 检查邻近城市是否尚未被访问
-            if (find(path.begin(), path.end(), flight.end_city_name) == path.end()) {
-                // 递归探索邻近城市
-                dfs(flight.end_city_name, end_city, path, minPrice, minPath, currentPrice + flight.spend_money);
-            }
+                if (std::find_if(path.begin(), path.end(), [&flight](const LineNode& node) {
+                    return node.start_city_name == flight.end_city_name;
+                }) == path.end()) {
+                dfs(flight.end_city_name, end_city, path, minPrice, minPath, currentPrice + flight.spend_money, flight);
+                }
+
+            // if (find(path.begin() -> start_city_name, path.end() -> start_city_name, flight.end_city_name) == path.end() -> start_city_name) {
+            //     // 递归探索邻近城市
+            //     dfs(flight.end_city_name, end_city, path, minPrice, minPath, currentPrice + flight.spend_money, flight);
+            // }
         }
     }
+    // LineNode line1("广州", "深圳", (0,0,0), (0,0,0), (0,0,0), 0.0, "T100");
+    // path.push_back(line1);
+    // if (find(path.begin() -> start_city_name, path.end() -> start_city_name, "广州") == "广州") {
+    //      cout << "Success" << endl;
+    // }
+    // if (std::find_if(path.begin(), path.end()0, [&flight](const LineNode& node) {
+//       return node.start_city_name == flight.end_city_name;
+//     }) == path.end()) {
+//     // ...
+// }
+    // cout << path[1].start_city_name;
 
     // 回溯：从路径中移除当前城市
     path.pop_back();
@@ -582,15 +641,20 @@ void ALGraph::printLeastMoneyPath (const std::string &start_city, const std::str
 {
     
     double minPrice = DBL_MAX; 
-    vector<string> path;
-    vector<string> minPath;
-
-    dfs(start_city, end_city, path, minPrice, minPath, 0.0);
+    vector<LineNode> path;
+    vector<LineNode> minPath;
+    LineNode line;
+    dfs(start_city, end_city, path, minPrice, minPath, 0.0, line);
+    Time et(0,0,0);
+    int T = -1;
+    minPath.erase(minPath.begin());
 
     cout << "最小的花费为: " << minPrice << endl;
-    cout << "路径如下: ";
-    for (const string& city : minPath) {
-        cout << city << " -> ";
+    cout << "路径如下: " << endl;
+    for (const LineNode& city : minPath) {
+        if(et < city.start_time ) T += 1;
+        cout<< city.start_city_name <<"  班次为："<< city.rank <<"  出发时间为:"<< city.start_time + Time(0,0,T) <<" day"<<"  到达时间为"<< city.end_time + Time(0,0,T) <<"day"<<" -->"<< city.end_city_name <<endl;
+
     }
 }
 
@@ -617,7 +681,7 @@ int main()
     //Node
 
     // 此处更改是飞机还是火车的文件
-    const char *filename = "数据结构/National-Transport-Advisory/Flight.txt";
+    const char *filename = "数据结构/National-Transport-Advisory/Train.txt";
     ALGraph a(filename);
 
     // 城市是否存在，返回1/2/0
@@ -668,6 +732,6 @@ int main()
     // a.showAllCity();
     // a.showAllLine();
 
-    a.printLeastMoneyPath("上海", "天津");
+    a.printLeastMoneyPath("成都", "上海");
     return 0;
 }
